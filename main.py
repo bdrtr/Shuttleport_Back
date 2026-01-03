@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import httpx
 import os
+from app.api import pricing
+from app.admin.admin_panel import setup_admin
 
 # .env dosyasını yükle
 load_dotenv()
@@ -22,6 +24,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Routers
+app.include_router(pricing.router)
+
+# Admin Panel (accessible at /admin)
+setup_admin(app)
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
