@@ -1,8 +1,11 @@
-# Shuttleport Backend - Pricing Models and Configuration
+# Shuttleport Backend - Pricing Models and Configuration (Database-driven)
 
 from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from app.database import SessionLocal
+from app.models.db_models import Vehicle, FixedRoute, PricingConfig
 
 
 class VehicleType(str, Enum):
@@ -63,98 +66,58 @@ class PricingResponse(BaseModel):
     vehicles: List[VehiclePricing]
 
 
-# Araç konfigürasyonu
-VEHICLE_CONFIGS = {
-    VehicleType.VITO: VehicleInfo(
-        type=VehicleType.VITO,
-        name="Mercedes Vito VIP",
-        name_tr="Mercedes Vito VIP",
-        capacity=7,
-        luggage_capacity=7,
-        image_url="/images/mercedes-vito.jpg",
-        features=["VIP İç Donanım", "Klima", "Wi-Fi", "Su İkramı"],
-        base_fare=200.0,
-        per_km_rate=15.0,
-        airport_fee=50.0
-    ),
-    VehicleType.SPRINTER: VehicleInfo(
-        type=VehicleType.SPRINTER,
-        name="Mercedes Sprinter",
-        name_tr="Mercedes Sprinter",
-        capacity=15,
-        luggage_capacity=15,
-        image_url="/images/mercedes-sprinter-front-1.jpg",
-        features=["Geniş İç Mekan", "Klima", "Wi-Fi", "TV", "Su İkramı"],
-        base_fare=300.0,
-        per_km_rate=20.0,
-        airport_fee=75.0
-    ),
-    VehicleType.LUXURY_SEDAN: VehicleInfo(
-        type=VehicleType.LUXURY_SEDAN,
-        name="Luxury Sedan",
-        name_tr="Lüks Sedan",
-        capacity=3,
-        luggage_capacity=3,
-        image_url="/images/luxury-sedan.jpg",
-        features=["Lüks Konfor", "Klima", "Wi-Fi"],
-        base_fare=250.0,
-        per_km_rate=18.0,
-        airport_fee=60.0
-    )
-}
-
-# Popüler rotalar için sabit fiyatlar (Zone-based pricing)
-# Fiyatlar rakip siteden (istanbulshuttleport.com) ~50₺ daha düşük (rekabetçi strateji)
-# Son güncelleme: 2026-01-03 (Rakip site fiyatları kontrol edildi)
-FIXED_ROUTES = {
-    # İstanbul Havalimanı - Merkez rotaları
-    # Rakip fiyatları: Sultanahmet (Sedan: 2050₺, Vito: 2136₺, Sprinter: 2948₺)
-    ("istanbul airport", "sultanahmet"): {
-        VehicleType.LUXURY_SEDAN: 2000.0,  # Rakip: 2050₺ | Bizim: 2000₺ (50₺ ucuz)
-        VehicleType.VITO: 2086.0,          # Rakip: 2136₺ | Bizim: 2086₺ (50₺ ucuz)
-        VehicleType.SPRINTER: 2898.0       # Rakip: 2948₺ | Bizim: 2898₺ (50₺ ucuz)
-    },
-    # Rakip fiyatları: Taksim (Sedan: 1880₺, Vito: 1965₺, Sprinter: 2948₺)
-    ("istanbul airport", "taksim"): {
-        VehicleType.LUXURY_SEDAN: 1830.0,  # Rakip: 1880₺ | Bizim: 1830₺ (50₺ ucuz)
-        VehicleType.VITO: 1915.0,          # Rakip: 1965₺ | Bizim: 1915₺ (50₺ ucuz)
-        VehicleType.SPRINTER: 2898.0       # Rakip: 2948₺ | Bizim: 2898₺ (50₺ ucuz)
-    },
-    # Kadıköy için tahmini fiyatlar (mesafe daha uzun)
-    ("istanbul airport", "kadıköy"): {
-        VehicleType.LUXURY_SEDAN: 2100.0,
-        VehicleType.VITO: 2200.0,
-        VehicleType.SPRINTER: 3100.0
-    },
-    # Beşiktaş için tahmini fiyatlar
-    ("istanbul airport", "beşiktaş"): {
-        VehicleType.LUXURY_SEDAN: 1800.0,
-        VehicleType.VITO: 1900.0,
-        VehicleType.SPRINTER: 2800.0
-    },
-    # Rakip fiyatları: Avcılar (Sedan: 2435₺, Vito: 2564₺, Sprinter: 3333₺)
-    ("istanbul airport", "avcılar"): {
-        VehicleType.LUXURY_SEDAN: 2385.0,  # Rakip: 2435₺ | Bizim: 2385₺ (50₺ ucuz)
-        VehicleType.VITO: 2514.0,          # Rakip: 2564₺ | Bizim: 2514₺ (50₺ ucuz)
-        VehicleType.SPRINTER: 3283.0       # Rakip: 3333₺ | Bizim: 3283₺ (50₺ ucuz)
-    },
-    # Sabiha Gökçen Havalimanı rotaları (tahmini, genelde daha pahalı)
-    ("sabiha gokcen airport", "sultanahmet"): {
-        VehicleType.LUXURY_SEDAN: 2700.0,
-        VehicleType.VITO: 2800.0,
-        VehicleType.SPRINTER: 3900.0
-    },
-    ("sabiha gokcen airport", "taksim"): {
-        VehicleType.LUXURY_SEDAN: 2600.0,
-        VehicleType.VITO: 2700.0,
-        VehicleType.SPRINTER: 3800.0
-    },
-    ("sabiha gokcen airport", "kadıköy"): {
-        VehicleType.LUXURY_SEDAN: 2300.0,
-        VehicleType.VITO: 2400.0,
-        VehicleType.SPRINTER: 3300.0
-    }
-}
+def get_vehicle_configs() -> Dict[VehicleType, VehicleInfo]:
+    """Get vehicle configurations from database"""
+    db = SessionLocal()
+    try:
+        vehicles = db.query(Vehicle).filter(Vehicle.active == True).all()
+        
+        configs = {}
+        for vehicle in vehicles:
+            # Get pricing config for this vehicle type
+            per_km_config = db.query(PricingConfig).filter(
+                PricingConfig.config_key == f"per_km_rate_{vehicle.vehicle_type}"
+            ).first()
+            
+            per_km_rate = float(per_km_config.config_value) if per_km_config else 12.0
+            
+            # Get base fare and airport fee from global configs
+            base_fare_config = db.query(PricingConfig).filter(
+                PricingConfig.config_key == "base_fare"
+            ).first()
+            airport_fee_config = db.query(PricingConfig).filter(
+                PricingConfig.config_key == "airport_fee"
+            ).first()
+            
+            base_fare = float(base_fare_config.config_value) if base_fare_config else 50.0
+            airport_fee = float(airport_fee_config.config_value) if airport_fee_config else 100.0
+            
+            # Convert features JSON to list of strings
+            features_list = []
+            if vehicle.features and isinstance(vehicle.features, list):
+                features_list = [f.get("text", "") for f in vehicle.features if isinstance(f, dict)]
+            
+            try:
+                vehicle_type_enum = VehicleType(vehicle.vehicle_type)
+            except ValueError:
+                continue  # Skip unknown vehicle types
+            
+            configs[vehicle_type_enum] = VehicleInfo(
+                type=vehicle_type_enum,
+                name=vehicle.name_en,
+                name_tr=vehicle.name_tr,
+                capacity=vehicle.capacity_max,
+                luggage_capacity=vehicle.baggage_capacity,
+                image_url=f"/images/{vehicle.vehicle_type}.jpg",
+                features=features_list,
+                base_fare=base_fare,
+                per_km_rate=per_km_rate,
+                airport_fee=airport_fee
+            )
+        
+        return configs
+    finally:
+        db.close()
 
 
 def normalize_location_name(name: str) -> str:
@@ -162,24 +125,78 @@ def normalize_location_name(name: str) -> str:
     return name.lower().replace("ı", "i").replace("ğ", "g").replace("ş", "s").replace("ç", "c").replace("ü", "u").replace("ö", "o")
 
 
-def check_fixed_route(origin: str, destination: str) -> Optional[str]:
-    """Sabit fiyatlı rota varsa route key döndür"""
-    origin_norm = normalize_location_name(origin)
-    destination_norm = normalize_location_name(destination)
+def check_fixed_route(origin: str, destination: str, db: Session = None) -> Optional[Dict[VehicleType, float]]:
+    """Check if there's a fixed price route in database"""
+    should_close = False
+    if db is None:
+        db = SessionLocal()
+        should_close = True
     
-    for (route_origin, route_dest) in FIXED_ROUTES.keys():
-        # Route key'lerini de normalize et (Türkçe karakterler için)
-        route_origin_norm = normalize_location_name(route_origin)
-        route_dest_norm = normalize_location_name(route_dest)
+    try:
+        origin_norm = normalize_location_name(origin)
+        destination_norm = normalize_location_name(destination)
         
-        # Normalize edilmiş versiyonlarla kontrol et
-        if route_origin_norm in origin_norm and route_dest_norm in destination_norm:
-            return (route_origin, route_dest)
-        # Ters yön kontrolü
-        if route_dest_norm in origin_norm and route_origin_norm in destination_norm:
-            return (route_dest, route_origin)
-    
-    return None
+        # Query all fixed routes
+        routes = db.query(FixedRoute).filter(FixedRoute.active == True).all()
+        
+        # Find matching route
+        for route in routes:
+            route_origin_norm = normalize_location_name(route.origin)
+            route_dest_norm = normalize_location_name(route.destination)
+            
+            # Check forward direction
+            if route_origin_norm in origin_norm and route_dest_norm in destination_norm:
+                # Get all vehicle prices for this route
+                all_routes = db.query(FixedRoute).filter(
+                    FixedRoute.origin == route.origin,
+                    FixedRoute.destination == route.destination,
+                    FixedRoute.active == True
+                ).all()
+                
+                prices = {}
+                for r in all_routes:
+                    vehicle = db.query(Vehicle).filter(Vehicle.id == r.vehicle_id).first()
+                    if vehicle:
+                        try:
+                            vehicle_type = VehicleType(vehicle.vehicle_type)
+                            # Apply discount if any
+                            final_price = float(r.price)
+                            if r.discount_percent and r.discount_percent > 0:
+                                final_price = final_price * (1 - float(r.discount_percent) / 100)
+                            prices[vehicle_type] = final_price
+                        except ValueError:
+                            continue
+                
+                return prices if prices else None
+            
+            # Check reverse direction
+            if route_dest_norm in origin_norm and route_origin_norm in destination_norm:
+                # Same logic for reverse
+                all_routes = db.query(FixedRoute).filter(
+                    FixedRoute.origin == route.origin,
+                    FixedRoute.destination == route.destination,
+                    FixedRoute.active == True
+                ).all()
+                
+                prices = {}
+                for r in all_routes:
+                    vehicle = db.query(Vehicle).filter(Vehicle.id == r.vehicle_id).first()
+                    if vehicle:
+                        try:
+                            vehicle_type = VehicleType(vehicle.vehicle_type)
+                            final_price = float(r.price)
+                            if r.discount_percent and r.discount_percent > 0:
+                                final_price = final_price * (1 - float(r.discount_percent) / 100)
+                            prices[vehicle_type] = final_price
+                        except ValueError:
+                            continue
+                
+                return prices if prices else None
+        
+        return None
+    finally:
+        if should_close:
+            db.close()
 
 
 def calculate_vehicle_price(
@@ -189,7 +206,7 @@ def calculate_vehicle_price(
     is_airport_transfer: bool,
     fixed_price: Optional[float] = None
 ) -> VehiclePricing:
-    """Tek bir araç için fiyat hesapla"""
+    """Tek bir araç için fiyat hesapla (minimum fiyat kontrolü ile)"""
     
     if fixed_price:
         # Sabit fiyatlı rota
@@ -204,14 +221,37 @@ def calculate_vehicle_price(
     
     subtotal = base_price + distance_price + airport_fee
     
-    # Round-trip indirimi (%10)
-    round_trip_discount = subtotal * 0.10 if is_round_trip else 0
+    # Round-trip indirimi ve minimum fiyat (database'den al)
+    db = SessionLocal()
+    try:
+        discount_config = db.query(PricingConfig).filter(
+            PricingConfig.config_key == "round_trip_discount"
+        ).first()
+        discount_percent = float(discount_config.config_value) if discount_config else 10.0
+        
+        # Minimum fare kontrolü (araç tipine göre)
+        vehicle_type_str = vehicle_config.type.value
+        minimum_fare_config = db.query(PricingConfig).filter(
+            PricingConfig.config_key == f"minimum_fare_{vehicle_type_str}"
+        ).first()
+        minimum_fare = float(minimum_fare_config.config_value) if minimum_fare_config else 0
+    finally:
+        db.close()
+    
+    round_trip_discount = subtotal * (discount_percent / 100) if is_round_trip else 0
     
     final_price = subtotal - round_trip_discount
     
     # Round-trip ise çift yön hesapla
     if is_round_trip and not fixed_price:
         final_price = final_price * 2 - round_trip_discount
+    
+    # Minimum fiyat kontrolü (sadece dinamik fiyatlandırmada)
+    minimum_applied = False
+    if not fixed_price and minimum_fare > 0:
+        if final_price < minimum_fare:
+            final_price = minimum_fare
+            minimum_applied = True
     
     return VehiclePricing(
         vehicle_type=vehicle_config.type,
@@ -230,6 +270,7 @@ def calculate_vehicle_price(
             "airport_fee": airport_fee,
             "subtotal": subtotal,
             "discount": round_trip_discount,
+            "minimum_applied": minimum_fare if minimum_applied else 0,
             "final": round(final_price, 2)
         }
     )

@@ -1,0 +1,147 @@
+<mxfile host="app.diagrams.net" modified="2026-01-04T01:36:00.000Z" agent="5.0" etag="shuttleport_db_schema" version="22.1.16" type="device">
+  <diagram name="Shuttleport Database Schema" id="shuttleport-db">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Vehicles Table -->
+        <mxCell id="vehicles_table" value="vehicles" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="80" width="280" height="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_pk" value="🔑 id: INTEGER (PK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="30" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_type" value="vehicle_type: VARCHAR(50) UNIQUE" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="56" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_name_en" value="name_en: VARCHAR(100)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="82" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_name_tr" value="name_tr: VARCHAR(100)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="108" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_capacity" value="capacity_min: INTEGER" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="134" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_capacity_max" value="capacity_max: INTEGER" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="160" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_baggage" value="baggage_capacity: INTEGER" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="186" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_features" value="features: JSON" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="212" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_multiplier" value="base_multiplier: NUMERIC(5,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="238" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_active" value="active: BOOLEAN" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="264" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_created" value="created_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="290" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="vehicles_updated" value="updated_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="vehicles_table">
+          <mxGeometry y="310" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Fixed Routes Table -->
+        <mxCell id="routes_table" value="fixed_routes" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="480" y="80" width="280" height="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_pk" value="🔑 id: INTEGER (PK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="30" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_origin" value="origin: VARCHAR(100)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="56" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_dest" value="destination: VARCHAR(100)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="82" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_fk" value="🔗 vehicle_id: INTEGER (FK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fillColor=#fff2cc;" vertex="1" parent="routes_table">
+          <mxGeometry y="108" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_price" value="price: NUMERIC(10,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="134" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_discount" value="discount_percent: NUMERIC(5,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="160" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_competitor" value="competitor_price: NUMERIC(10,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="186" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_notes" value="notes: TEXT" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="212" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_active" value="active: BOOLEAN" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="routes_table">
+          <mxGeometry y="238" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_created" value="created_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="routes_table">
+          <mxGeometry y="264" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="routes_updated" value="updated_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="routes_table">
+          <mxGeometry y="284" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Pricing Config Table -->
+        <mxCell id="config_table" value="pricing_config" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="880" y="80" width="280" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_pk" value="🔑 id: INTEGER (PK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;" vertex="1" parent="config_table">
+          <mxGeometry y="30" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_key" value="config_key: VARCHAR(100) UNIQUE" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="config_table">
+          <mxGeometry y="56" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_value" value="config_value: NUMERIC(10,2)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="config_table">
+          <mxGeometry y="82" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_desc" value="description: TEXT" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="config_table">
+          <mxGeometry y="108" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_vehicle_type" value="vehicle_type: VARCHAR(50)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;" vertex="1" parent="config_table">
+          <mxGeometry y="134" width="280" height="26" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_created" value="created_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="config_table">
+          <mxGeometry y="160" width="280" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="config_updated" value="updated_at: TIMESTAMP" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontColor=#666666;" vertex="1" parent="config_table">
+          <mxGeometry y="180" width="280" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Relationship Arrow -->
+        <mxCell id="relationship" value="" style="edgeStyle=entityRelationEdgeStyle;fontSize=12;html=1;endArrow=ERoneToMany;startArrow=ERmandOne;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="vehicles_pk" target="routes_fk">
+          <mxGeometry width="100" height="100" relative="1" as="geometry">
+            <mxPoint x="380" y="250" as="sourcePoint"/>
+            <mxPoint x="480" y="150" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Shuttleport Database Schema&#xa;PostgreSQL 15" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=16;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="80" y="20" width="280" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Data Info Boxes -->
+        <mxCell id="data_vehicles" value="📊 Vehicles: 3 records&#xa;• Luxury Sedan (1.0x)&#xa;• Mercedes Vito VIP (1.05x)&#xa;• Mercedes Sprinter (1.45x)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="280" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="data_routes" value="📊 Fixed Routes: 24 records&#xa;• 8 unique routes&#xa;• 3 prices per route (per vehicle)&#xa;• Example: IST Airport → Avcılar&#xa;  2385₺ / 2514₺ / 3283₺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="480" y="440" width="280" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="data_config" value="📊 Pricing Config: 6 records&#xa;• base_fare: 50₺&#xa;• per_km_rate_sedan: 12₺&#xa;• per_km_rate_vito: 15₺&#xa;• per_km_rate_sprinter: 20₺&#xa;• airport_fee: 100₺&#xa;• round_trip_discount: 10%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=8;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="880" y="300" width="280" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="note_admin" value="✏️ Managed via Admin Panel&#xa;http://localhost:8000/admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=center;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="560" width="680" height="50" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
