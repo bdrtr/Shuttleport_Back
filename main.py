@@ -24,6 +24,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static files with caching headers
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+
+class CacheStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        # Cache for 1 year (31536000 seconds)
+        response.headers["Cache-Control"] = "public, max-age=31536000"
+        return response
+
+# Create static directory if it doesn't exist
+os.makedirs("static/images", exist_ok=True)
+app.mount("/static", CacheStaticFiles(directory="static"), name="static")
+
 # Import and include routers
 from app.api import pricing, exchange_rates
 

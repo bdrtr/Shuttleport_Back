@@ -22,7 +22,10 @@ class VehicleInfo(BaseModel):
     name_tr: str
     capacity: int
     luggage_capacity: int
-    image_url: str
+    capacity: int
+    luggage_capacity: int
+    image_url: str  # Kept for backward compatibility
+    images: List[str] = []
     features: List[str]
     base_fare: float = Field(description="Başlangıç ücreti (TL)")
     per_km_rate: float = Field(description="KM başına ücret (TL)")
@@ -56,7 +59,10 @@ class VehiclePricing(BaseModel):
     subtotal: float
     round_trip_discount: float
     final_price: float
+    final_price: float
     currency: str = "TRY"
+    image_url: Optional[str] = None
+    images: List[str] = []
     price_breakdown: Dict[str, float]
 
 
@@ -102,13 +108,41 @@ def get_vehicle_configs() -> Dict[VehicleType, VehicleInfo]:
             except ValueError:
                 continue  # Skip unknown vehicle types
             
+            # Determine images list
+            images_list = []
+            
+            # Relation handling (vehicle.images is now a list of VehicleImage objects)
+            if vehicle.images:
+                for img_obj in vehicle.images:
+                    # VehicleImage object has image_path attribute
+                    path = img_obj.image_path
+                    if path.startswith("http"):
+                        images_list.append(path)
+                    else:
+                        images_list.append(f"http://localhost:8000/static/{path}")
+            
+            # Fallback to single image path if no list
+            if not images_list and vehicle.image_path:
+                 if vehicle.image_path.startswith("http"):
+                    images_list.append(vehicle.image_path)
+                 else:
+                    images_list.append(f"http://localhost:8000/static/{vehicle.image_path}")
+            
+            # Fallback to default if nothing else
+            if not images_list:
+                images_list.append(f"/images/{vehicle.vehicle_type}.jpg")
+            
+            # Primary image for backward compatibility
+            image_url = images_list[0] if images_list else ""
+
             configs[vehicle_type_enum] = VehicleInfo(
                 type=vehicle_type_enum,
                 name=vehicle.name_en,
                 name_tr=vehicle.name_tr,
                 capacity=vehicle.capacity_max,
                 luggage_capacity=vehicle.baggage_capacity,
-                image_url=f"/images/{vehicle.vehicle_type}.jpg",
+                image_url=image_url,
+                images=images_list,
                 features=features_list,
                 base_fare=base_fare,
                 per_km_rate=per_km_rate,
@@ -264,6 +298,8 @@ def calculate_vehicle_price(
         subtotal=subtotal,
         round_trip_discount=round_trip_discount,
         final_price=round(final_price, 2),
+        image_url=vehicle_config.image_url,
+        images=vehicle_config.images,
         price_breakdown={
             "base_fare": base_price,
             "distance_charge": distance_price,

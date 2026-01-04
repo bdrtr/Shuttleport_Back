@@ -19,16 +19,36 @@ class Vehicle(Base):
     capacity_max = Column(Integer, nullable=False)
     baggage_capacity = Column(Integer, nullable=False)
     features = Column(JSON)  # [{"icon": "🧊", "text": "Soğuk İçecek"}, ...]
+    
+    # Deprecated columns (kept for code compatibility and DB match)
+    image_path = Column(String(255), nullable=True)
+    images_json = Column("images", JSON, default=[])  # Mapped to 'images' column in DB, renamed to avoid conflict with relationship
+    
     base_multiplier = Column(Numeric(5, 2), default=1.0)  # For pricing calculations
     active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-
+    
     # Relationships
+    # images property is now the relationship
+    images = relationship("VehicleImage", back_populates="vehicle", cascade="all, delete-orphan")
     fixed_routes = relationship("FixedRoute", back_populates="vehicle")
 
     def __repr__(self):
         return f"<Vehicle(type={self.vehicle_type}, name={self.name_en})>"
+
+
+class VehicleImage(Base):
+    __tablename__ = "vehicle_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False)
+    image_path = Column(String(255), nullable=False)
+    is_primary = Column(Boolean, default=False, nullable=False)  # Primary/featured image
+    display_order = Column(Integer, default=0)  # For future: ordering images
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    
+    vehicle = relationship("Vehicle", back_populates="images")
 
 
 class FixedRoute(Base):

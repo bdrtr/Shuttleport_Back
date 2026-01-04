@@ -3,7 +3,7 @@ Admin panel configuration using SQLAdmin - User-friendly version
 """
 from sqladmin import Admin, ModelView
 from app.database import engine
-from app.models.db_models import Vehicle, FixedRoute, PricingConfig
+from app.models.db_models import Vehicle, VehicleImage, FixedRoute, PricingConfig
 
 
 class VehicleAdmin(ModelView, model=Vehicle):
@@ -24,13 +24,249 @@ class VehicleAdmin(ModelView, model=Vehicle):
         "name_en": "Vehicle Name",
         "vehicle_type": "Type Code",
         "capacity_max": "Capacity",
-        "active": "Active"
+        "active": "Active",
+        "image_path": "Image"
     }
+
+    # Form configuration
+    form_columns = [
+        "vehicle_type", "name_en", "name_tr", 
+        "capacity_min", "capacity_max", "baggage_capacity",
+        "base_multiplier", "features", "active"
+    ]
+    
+    # Inline model view for images
+    # SQLAdmin supports inline models via form_ajax_refs or separate management
+    # For simplicity and robustness, we will manage images in their own view first,
+    # but we can try to add them here if possible. 
+    # Let's keep Vehicle clean and add a separate VehicleImageAdmin.
+
+    can_edit = True
+    can_delete = True
+    can_view_details = True
+
+
+class VehicleImageAdmin(ModelView, model=VehicleImage):
+    """Admin view for vehicle images"""
+    name = "Vehicle Image"
+    name_plural = "Vehicle Images"
+    icon = "fa-solid fa-images"
+    
+    column_list = ["id", "vehicle", "image_path", "is_primary", "created_at"]
+    column_sortable_list = ["id", "vehicle", "created_at"]
+    
+    column_labels = {
+        "vehicle": "Vehicle",
+        "image_path": "Image",
+        "is_primary": "Primary Image",
+        "display_order": "Display Order"
+    }
+    
+    form_columns = ["vehicle", "image_path", "is_primary"]
+    
+    # Use our standard ImageUploadField
+    from app.admin.utils import ImageUploadField
+    
+    form_overrides = {
+        "image_path": ImageUploadField
+    }
+    
+    form_args = {
+        "image_path": {
+            "label": "Upload Image",
+            "base_path": "static/images",
+            "relative_path": "images"
+        }
+    }
+    
+    
+    async def insert_model(self, request, data):
+        """Called when inserting a new model - handle multiple file uploads"""
+        # Check if multiple files were uploaded
+        if "image_path" in data:
+            image_files = data["image_path"]
+            
+            # If it's a list (multiple files), create a record for each
+            if isinstance(image_files, list) and len(image_files) > 0:
+                # Extract vehicle_id - SQLAdmin might send it as 'vehicle' (the object) or 'vehicle_id'
+                vehicle_id = data.get("vehicle_id")
+                if vehicle_id is None and "vehicle" in data:
+                    # If vehicle is an object, get its id
+                    vehicle = data.get("vehicle")
+                    if hasattr(vehicle, "id"):
+                        vehicle_id = vehicle.id
+                    else:
+                        vehicle_id = vehicle  # It's already an ID
+                
+                is_primary = data.get("is_primary", False)
+                created_images = []
+                
+                from app.database import SessionLocal
+                from app.models.db_models import VehicleImage
+                db = SessionLocal()
+                
+                try:
+                    # Create a record for each uploaded file
+                    for idx, image_file in enumerate(image_files):
+                        # Process each file
+                        file_data = {
+                            "vehicle_id": vehicle_id,
+                            "image_path": image_file,
+                            "is_primary": is_primary if idx == 0 else False  # Only first one primary if checked
+                        }
+                        
+                        # Handle file upload for this specific file
+                        await self._handle_file_upload(file_data)
+                        
+                        # Handle primary logic for this file
+                        if file_data.get("is_primary"):
+                            await self._handle_primary_image(file_data, is_new=True)
+                        
+                        # Create the record
+                        if "image_path" in file_data:  # File was successfully processed
+                            obj = VehicleImage(**file_data)
+                            db.add(obj)
+                            created_images.append(obj)
+                    
+                    db.commit()
+                    for obj in created_images:
+                        db.refresh(obj)
+                    
+                    print(f"✓ Created {len(created_images)} image records")
+                    
+                    # Return first one (SQLAdmin expects a single object)
+                    return created_images[0] if created_images else None
+                    
+                except Exception as e:
+                    db.rollback()
+                    print(f"ERROR in multi-file insert: {e}")
+                    raise e
+                finally:
+                    db.close()
+            else:
+                # Single file - use original flow
+                await self._handle_file_upload(data)
+                await self._handle_primary_image(data, is_new=True)
+                return await super().insert_model(request, data)
+        else:
+            # No file - use original flow
+            return await super().insert_model(request, data)
+    
+    async def update_model(self, request, pk, data):
+        """Called when updating an existing model - intercept here to handle file upload"""
+        await self._handle_file_upload(data)
+        await self._handle_primary_image(data, is_new=False, current_id=pk)
+        # Call parent's update method
+        return await super().update_model(request, pk, data)
+    
+    async def _handle_file_upload(self, data: dict):
+        """Process file upload and replace UploadFile with string path"""
+        if "image_path" not in data:
+            return
+        
+        image_file = data["image_path"]
+        
+        # If already a string path, skip
+        if isinstance(image_file, str):
+            return
+        
+        # Check if it's a file upload object
+        if not hasattr(image_file, "filename"):
+            return
+        
+        filename = image_file.filename
+        
+        # Empty file, remove from data
+        if not filename:
+            del data["image_path"]
+            return
+        
+        try:
+            import os
+            from uuid import uuid4
+            
+            # Generate unique filename
+            file_extension = os.path.splitext(filename)[1].lower()
+            unique_filename = f"{uuid4()}{file_extension}"
+            
+            # Ensure directory exists
+            os.makedirs("static/images", exist_ok=True)
+            
+            # Save file
+            file_location = f"static/images/{unique_filename}"
+            
+            # Read file content (works with both UploadFile and FileStorage)
+            if hasattr(image_file, 'read'):
+                # UploadFile (async)
+                content = await image_file.read()
+            elif hasattr(image_file, 'file'):
+                # FileStorage (sync)
+                content = image_file.file.read()
+            else:
+                print(f"ERROR: Unknown file type: {type(image_file)}")
+                del data["image_path"]
+                return
+            
+            # Write to disk
+            with open(file_location, "wb") as f:
+                f.write(content)
+            
+            # Update data with string path
+            data["image_path"] = f"images/{unique_filename}"
+            print(f"✓ Image saved: {file_location}")
+            
+        except Exception as e:
+            print(f"ERROR saving image: {e}")
+            import traceback
+            traceback.print_exc()
+            # Remove to prevent DB error
+            if "image_path" in data:
+                del data["image_path"]
+    
+    async def _handle_primary_image(self, data: dict, is_new: bool, current_id=None):
+        """Ensure only one primary image per vehicle"""
+        # If this image is being marked as primary
+        if data.get("is_primary", False):
+            # Extract vehicle_id 
+            vehicle_id = data.get("vehicle_id")
+            if vehicle_id is None and "vehicle" in data:
+                vehicle = data.get("vehicle")
+                if hasattr(vehicle, "id"):
+                    vehicle_id = vehicle.id
+                else:
+                    vehicle_id = vehicle
+            
+            if vehicle_id:
+                # Unmark all other images for this vehicle
+                from app.database import SessionLocal
+                db = SessionLocal()
+                try:
+                    # Get all images for this vehicle
+                    from app.models.db_models import VehicleImage
+                    
+                    if is_new:
+                        # For new images, unmark all existing ones
+                        db.query(VehicleImage).filter(
+                            VehicleImage.vehicle_id == vehicle_id
+                        ).update({"is_primary": False})
+                    else:
+                        # For updates, unmark all except current
+                        db.query(VehicleImage).filter(
+                            VehicleImage.vehicle_id == vehicle_id,
+                            VehicleImage.id != current_id
+                        ).update({"is_primary": False})
+                    
+                    db.commit()
+                    print(f"✓ Set image as primary for vehicle {vehicle_id}")
+                except Exception as e:
+                    print(f"ERROR in _handle_primary_image: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
     
     can_create = True
     can_edit = True
     can_delete = True
-    can_view_details = True
 
 
 class FixedRouteAdmin(ModelView, model=FixedRoute):
@@ -106,6 +342,7 @@ def setup_admin(app):
     
     # Register admin views
     admin.add_view(VehicleAdmin)
+    admin.add_view(VehicleImageAdmin)
     admin.add_view(FixedRouteAdmin)
     admin.add_view(PricingConfigAdmin)
     
