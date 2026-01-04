@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: shuttleport_postgres
     restart: always
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: shuttleport_user
       POSTGRES_PASSWORD: shuttleport_pass_2024
       POSTGRES_DB: shuttleport_db
-    ports:
-      - "5433:5432" # Port 5433 on host -> 5432 in container
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

@@ -4,31 +4,34 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import httpx
 import os
-from app.api import pricing
-from app.admin.admin_panel import setup_admin
 
-# .env dosyasını yükle
+# Load environment variables
 load_dotenv()
 
+# Create FastAPI app
 app = FastAPI(
     title="Shuttleport API",
-    description="Backend API for Shuttleport - Transfer Booking Platform",
-    version="0.1.0"
+    description="API for Shuttleport transfer booking system",
+    version="1.0.0"
 )
 
-# CORS ayarları - Frontend ile iletişim için
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js frontend
+    allow_origins=["*"],  # In production, specify exact domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
+# Import and include routers
+from app.api import pricing, exchange_rates
+
 app.include_router(pricing.router)
+app.include_router(exchange_rates.router)
 
 # Admin Panel (accessible at /admin)
+from app.admin.admin_panel import setup_admin
 setup_admin(app)
 
 # Google Maps API Key
