@@ -2,6 +2,7 @@
 Admin panel configuration using SQLAdmin - User-friendly version
 """
 from sqladmin import Admin, ModelView
+from markupsafe import Markup
 from app.database import engine
 from app.models.db_models import Vehicle, VehicleImage, FixedRoute, PricingConfig
 
@@ -25,7 +26,34 @@ class VehicleAdmin(ModelView, model=Vehicle):
         "vehicle_type": "Type Code",
         "capacity_max": "Capacity",
         "active": "Active",
-        "image_path": "Image"
+        "image_path": "Image",
+        "images": "Gallery"
+    }
+    
+    # Format images relationship to show thumbnails
+    column_formatters = {
+        "images": lambda m, a: Markup('<div style="display: flex; gap: 5px; flex-wrap: wrap;">' + 
+            ''.join([f'<img src="/static/{img.image_path}" style="max-width: 80px; max-height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid {"#4CAF50" if img.is_primary else "#ddd"};" title="{"Primary" if img.is_primary else ""}">' 
+                    for img in (m.images or [])]) + 
+            '</div>') if m.images else Markup('<span style="color: #999;">No images</span>'),
+        
+        "fixed_routes": lambda m, a: Markup(
+            '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">'
+            '<thead><tr style="background: #f5f5f5;">'
+            '<th style="padding: 6px; text-align: left; border-bottom: 2px solid #ddd;">Route</th>'
+            '<th style="padding: 6px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>'
+            '<th style="padding: 6px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>'
+            '</tr></thead><tbody>' +
+            ''.join([
+                f'<tr style="border-bottom: 1px solid #eee;">'
+                f'<td style="padding: 6px;"><b>{route.origin}</b> → <b>{route.destination}</b></td>'
+                f'<td style="padding: 6px; text-align: right; color: #2196F3; font-weight: bold;">{route.price:,.2f} ₺</td>'
+                f'<td style="padding: 6px; text-align: center;">{"✅" if route.active else "❌"}</td>'
+                f'</tr>'
+                for route in (m.fixed_routes or [])
+            ]) +
+            '</tbody></table>'
+        ) if m.fixed_routes else Markup('<span style="color: #999;">No fixed routes</span>')
     }
 
     # Form configuration
@@ -60,6 +88,11 @@ class VehicleImageAdmin(ModelView, model=VehicleImage):
         "image_path": "Image",
         "is_primary": "Primary Image",
         "display_order": "Display Order"
+    }
+    
+    # Format image_path to show thumbnail
+    column_formatters = {
+        "image_path": lambda m, a: Markup(f'<img src="/static/{m.image_path}" style="max-width: 100px; max-height: 60px; object-fit: cover; border-radius: 4px;">') if m.image_path else Markup('<span style="color: #999;">No image</span>')
     }
     
     form_columns = ["vehicle", "image_path", "is_primary"]
@@ -275,18 +308,24 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     name_plural = "Fixed Routes"
     icon = "fa-solid fa-route"
     
-    # Show route info - don't use formatters to avoid errors
-    column_list = ["id", "origin", "destination", "price", "active"]
+    # Show route info with vehicle
+    column_list = ["id", "origin", "destination", "vehicle", "price", "active"]
     
     column_searchable_list = ["origin", "destination"]
     column_sortable_list = ["id", "origin", "destination", "price", "active"]
     column_default_sort = ("id", False)
+    
+    # Format vehicle to show name instead of object
+    column_formatters = {
+        "vehicle": lambda m, a: Markup(f'<span title="Type: {m.vehicle.vehicle_type}">{m.vehicle.name_en}</span>') if m.vehicle else Markup('<span style="color: #999;">No vehicle</span>')
+    }
     
     # Better labels - vehicle shown in details/edit
     column_labels = {
         "id": "Route ID",
         "origin": "From",
         "destination": "To",
+        "vehicle": "Vehicle",
         "vehicle_id": "Vehicle Type",
         "price": "Price (₺)",
         "discount_percent": "Discount %",

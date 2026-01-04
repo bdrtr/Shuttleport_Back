@@ -263,12 +263,27 @@ def calculate_vehicle_price(
         ).first()
         discount_percent = float(discount_config.config_value) if discount_config else 10.0
         
-        # Minimum fare kontrolü (araç tipine göre)
+        # Minimum fare kontrolü - önce global, sonra araç tipine özel
         vehicle_type_str = vehicle_config.type.value
-        minimum_fare_config = db.query(PricingConfig).filter(
+        
+        # Global minimum fare kontrolü
+        global_minimum_config = db.query(PricingConfig).filter(
+            PricingConfig.config_key == "minimum_fare",
+            PricingConfig.vehicle_type == None
+        ).first()
+        
+        # Vehicle-specific minimum fare kontrolü
+        vehicle_minimum_config = db.query(PricingConfig).filter(
             PricingConfig.config_key == f"minimum_fare_{vehicle_type_str}"
         ).first()
-        minimum_fare = float(minimum_fare_config.config_value) if minimum_fare_config else 0
+        
+        # Global varsa onu kullan, yoksa vehicle-specific kullan
+        if global_minimum_config:
+            minimum_fare = float(global_minimum_config.config_value)
+        elif vehicle_minimum_config:
+            minimum_fare = float(vehicle_minimum_config.config_value)
+        else:
+            minimum_fare = 0
     finally:
         db.close()
     

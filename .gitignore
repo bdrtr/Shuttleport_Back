@@ -28,7 +28,7 @@ build/
 *.sqlite3
 
 # Alembic
-# Keep alembic/ directory but ignore version files if needed
+# Keep alembic/ directory
 
 # Docker
 docker-compose.override.yml
@@ -53,3 +53,14 @@ htmlcov/
 
 # Project specific
 scripts/__pycache__/
+
+# Uploaded images (keep the directory structure but not actual images in git)
+# Uncomment below if you don't want to commit uploaded images:
+# static/images/*.jpg
+# static/images/*.jpeg
+# static/images/*.png
+# static/images/*.gif
+
+# Backup files
+*.backup
+database_schema.drawio.bkp

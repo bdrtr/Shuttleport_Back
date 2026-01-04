@@ -1,188 +1,187 @@
-# Shuttleport Backend
+# Shuttleport Backend API
 
-FastAPI backend for the Shuttleport transfer booking platform.
+Modern transfer booking platform - FastAPI backend with PostgreSQL database
 
-## Project Structure
+## 🚀 Features
 
-```
-app/
-├── __init__.py
-├── main.py                 # FastAPI app initialization
-├── api/                    # API layer
-│   ├── v1/                # API version 1
-│   │   ├── router.py      # Main API router
-│   │   └── endpoints/     # Endpoint modules
-│   │       ├── health.py
-│   │       └── maps.py
-├── core/                   # Core configurations
-│   ├── config.py          # Settings (Pydantic)
-│   ├── security.py        # Auth & security
-│   └── exceptions.py      # Custom exceptions
-├── models/                 # Database models (future)
-├── schemas/                # Request/Response schemas
-│   └── maps.py
-├── services/               # Business logic
-│   └── maps_service.py
-├── repositories/           # Data access (future)
-├── middleware/             # Custom middleware
-│   └── logging.py
-└── utils/                  # Utilities
-    └── google_maps.py
-```
+- **Multi-image uploads** per vehicle with primary selection
+- **Template route system** for 60+ popular destinations  
+- **Dynamic pricing** with minimum fare enforcement (1200₺)
+- **Admin panel** with SQLAdmin (thumbnails, formatted tables)
+- **Database migrations** with Alembic
+- **RESTful API** with automatic documentation
 
-## Architecture
-
-### Layered Architecture
-
-The backend follows a clean layered architecture:
-
-1. **API Layer** (`app/api/`): HTTP endpoints and request handling
-2. **Service Layer** (`app/services/`): Business logic and orchestration
-3. **Utils Layer** (`app/utils/`): External API clients and helpers
-4. **Repository Layer** (`app/repositories/`): Data access (future DB integration)
-
-### Request Flow
+## 📁 Project Structure
 
 ```
-Request → Endpoint → Service → Utils/Repository → Response
-         (API)      (Business) (Data/External)
+shuttleport_backend/
+├── app/
+│   ├── admin/              # Admin panel (SQLAdmin)
+│   │   ├── admin_panel.py  # Admin views
+│   │   └── utils.py        # Custom fields
+│   ├── api/                # API endpoints
+│   │   ├── pricing.py      # Pricing calculations
+│   │   └── exchange_rates.py
+│   ├── models/             # Database models
+│   │   ├── db_models.py    # SQLAlchemy models
+│   │   └── pricing.py      # Pricing logic
+│   └── database.py         # Database config
+├── alembic/                # Database migrations
+│   └── versions/           # Migration files
+├── scripts/                # Utility scripts
+│   └── create_template_routes.py
+├── static/
+│   └── images/             # Uploaded vehicle images
+└── main.py                 # FastAPI app
 ```
 
-## Getting Started
+## 🗄️ Database Schema
+
+4 main tables:
+- **vehicles** - Vehicle types (Vito, Sprinter, Luxury Sedan)
+- **vehicle_images** - Multi-image support with primary flag
+- **fixed_routes** - Pre-priced popular routes
+- **pricing_config** - Global pricing settings
+
+View `database_schema.drawio` for full ER diagram.
+
+## 🛠️ Setup
 
 ### Prerequisites
-
 - Python 3.9+
-- pip
+- PostgreSQL
+- Node.js (for frontend)
 
 ### Installation
 
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
 
-### Environment Setup
-
-Copy `.env.example` to `.env`:
-
-```bash
+# Setup environment
 cp .env.example .env
+# Edit .env with your DATABASE_URL
 ```
 
-Update the environment variables:
-
-```env
-GOOGLE_MAPS_API_KEY=your_api_key_here
-CORS_ORIGINS=http://localhost:3000
-```
-
-### Development
+### Database Setup
 
 ```bash
-# Run development server
-uvicorn app.main:app --reload --port 8000
+# Run migrations
+alembic upgrade head
+
+# (Optional) Create template routes
+python scripts/create_template_routes.py --all
 ```
 
-API documentation available at:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-### Testing
+### Run Development Server
 
 ```bash
-# Install dev dependencies
-pip install -r requirements-dev.txt
+# Backend
+uvicorn main:app --reload --port 8000
 
-# Run tests
-pytest tests/ -v
+# Admin panel: http://localhost:8000/admin
+# API docs: http://localhost:8000/docs
 ```
 
-## Adding New Features
+## 🎨 Admin Panel
 
-### 1. Create Schema
+Access at `/admin` with features:
+- **Vehicle management** with image gallery
+- **Multi-image upload** (Ctrl+Click)
+- **Fixed routes** with formatted tables
+- **Pricing configuration**
 
-Define request/response models in `app/schemas/`:
+## 🚗 Template Routes
 
-```python
-# app/schemas/booking.py
-from pydantic import BaseModel
+Generate routes for all vehicles:
 
-class BookingRequest(BaseModel):
-    customer_name: str
-    # ... other fields
+```bash
+# Preview
+python scripts/create_template_routes.py --all --dry-run
+
+# Create
+python scripts/create_template_routes.py --all
+
+# Single vehicle
+python scripts/create_template_routes.py --vehicle vito
 ```
 
-### 2. Create Service
+Creates 60+ routes:
+- Istanbul Airport → 10 destinations
+- Sabiha Gökçen Airport → 10 destinations
+- For all 3 vehicle types
 
-Implement business logic in `app/services/`:
+## 💰 Pricing
 
-```python
-# app/services/booking_service.py
-class BookingService:
-    async def create_booking(self, request: BookingRequest):
-        # Business logic here
-        pass
+### Minimum Fare
+All trips: **1200₺ minimum**
+
+### Dynamic Pricing Formula
+```
+price = max(
+    base_fare + (distance_km × per_km_rate) + airport_fee,
+    minimum_fare
+)
 ```
 
-### 3. Create Endpoint
+### Fixed Routes
+Pre-priced routes override dynamic calculation.
 
-Add API endpoint in `app/api/v1/endpoints/`:
+## 📊 API Endpoints
 
-```python
-# app/api/v1/endpoints/booking.py
-from fastapi import APIRouter
-from app.services.booking_service import booking_service
+### Pricing
+- `POST /api/pricing/calculate` - Calculate trip price
+- `GET /api/pricing/vehicles` - List vehicles
+- `GET /api/pricing/fixed-routes` - Get fixed routes
 
-router = APIRouter()
-
-@router.post("/bookings")
-async def create_booking(request: BookingRequest):
-    return await booking_service.create_booking(request)
+### Example Request
+```bash
+curl -X POST http://localhost:8000/api/pricing/calculate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin_lat": 41.0082,
+    "origin_lng": 28.8784,
+    "origin_name": "Avcılar",
+    "destination_lat": 40.9925,
+    "destination_lng": 28.8853,
+    "destination_name": "Küçükçekmece",
+    "distance_km": 7,
+    "passenger_count": 1
+  }'
 ```
 
-### 4. Register Router
+## 🔧 Database Migrations
 
-Add to main API router in `app/api/v1/router.py`:
+```bash
+# Create new migration
+alembic revision --autogenerate -m "description"
 
-```python
-from app.api.v1.endpoints import booking
+# Apply migrations
+alembic upgrade head
 
-api_router.include_router(booking.router, tags=["booking"])
+# Rollback
+alembic downgrade -1
 ```
 
-## Configuration
+## 📝 Recent Updates
 
-All configuration is managed through `app/core/config.py` using Pydantic Settings:
+- ✅ Multi-image upload with primary selection
+- ✅ Template route generation system
+- ✅ 1200₺ minimum fare enforcement
+- ✅ Admin UI improvements (thumbnails, tables)
+- ✅ Database schema diagram
 
-```python
-from app.core.config import settings
+## 🤝 Contributing
 
-# Access configuration
-api_key = settings.GOOGLE_MAPS_API_KEY
-debug_mode = settings.DEBUG
-```
+1. Create feature branch
+2. Make changes
+3. Test thoroughly
+4. Submit PR
 
-## Error Handling
+## 📄 License
 
-Custom exceptions are defined in `app/core/exceptions.py`:
-
-```python
-from app.core.exceptions import GoogleMapsAPIError
-
-raise GoogleMapsAPIError("API call failed", details={"code": 500})
-```
-
-## API Versioning
-
-The API is versioned with the `/api/v1` prefix. Future versions can be added by creating new version modules under `app/api/`.
-
-## Available Scripts
-
-- Development: `uvicorn app.main:app --reload`
-- Production: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-- Tests: `pytest tests/ -v`
+MIT
