@@ -1,17 +1,19 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import httpx
 import os
+import shutil
 from contextlib import asynccontextmanager
 import time
 from sqlalchemy.exc import OperationalError
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.models import db_models # Ensure models are loaded
 from app.api import pricing, exchange_rates
 from app.admin.admin_panel import setup_admin
-from app.services.init_db import init_db_data
+from app.services.init_db import init_db_data, init_routes_data
 
 # Load environment variables
 load_dotenv()
@@ -240,3 +242,29 @@ async def search_places(request: PlaceSearchRequest):
         })
     
     return {"places": places}
+
+
+@app.post("/api/admin/import-excel")
+async def import_excel(file: UploadFile = File(...)):
+    """
+    Import Excel file and update database
+    """
+    if not file.filename.endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="Only .xlsx files are allowed")
+    
+    file_path = "static/istanbul_transfer.xlsx"
+    try:
+        # Save uploaded file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Sync database
+        db = SessionLocal()
+        try:
+            init_routes_data(db)
+        finally:
+            db.close()
+        
+        return RedirectResponse(url="/admin/fixed-route/list", status_code=303)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

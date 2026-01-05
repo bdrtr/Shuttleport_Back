@@ -108,104 +108,73 @@ def init_vehicle_data(db: Session):
     db.commit()
 
 def init_routes_data(db: Session):
-    """Initialize sample fixed routes"""
-    print("Checking Fixed Routes...")
+    """
+    Initialize fixed routes: STRICT LOAD from Excel.
+    The Excel file (istanbul_transfer.xlsx) is the Single Source of Truth.
+    Existing DB data is CLEARED and re-populated from Excel on startup.
+    """
+    print("Initializing Routes from Excel (Strict Mode)...")
     
-    from app.core.constants import ISTANBUL_LOCATIONS
-    
-    # Fetch all vehicle types
-    vehicles_map = {v.vehicle_type: v for v in db.query(Vehicle).all()}
-    vito = vehicles_map.get("vito")
-    
-    if not vito:
-        return
-
-    # Use constants for locations to ensure match with Admin Panel
-    loc_ist = ISTANBUL_LOCATIONS[0][0]
-    loc_saw = ISTANBUL_LOCATIONS[1][0]
-    loc_sultanahmet = ISTANBUL_LOCATIONS[2][0]
-    loc_taksim = ISTANBUL_LOCATIONS[3][0]
-    loc_besiktas = ISTANBUL_LOCATIONS[4][0]
-    loc_kadikoy = ISTANBUL_LOCATIONS[5][0]
-
     from app.services.data_manager import DataManager
     
-    # Try to load from Excel first
-    excel_routes = DataManager.load_routes()
-    base_routes = []
+    # 1. Load Vehicles Map
+    vehicles_map = {v.vehicle_type: v for v in db.query(Vehicle).all()}
     
-    if excel_routes:
-        print(f"  -> Loaded {len(excel_routes)} routes from Excel file.")
-        for r in excel_routes:
-            # Only add if price is valid
-            if r.get("price_vito"):
-                base_routes.append({
-                    "origin": r["origin"],
-                    "destination": r["destination"],
-                    "price": float(r["price_vito"]),
-                    "active": True
-                })
-    
-    if not base_routes:
-        print("  -> No routes in Excel. Using defaults and saving to file...")
-        base_routes = [
-            # IST
-            {"origin": loc_ist, "destination": loc_sultanahmet, "price": 1764, "active": True},
-            {"origin": loc_ist, "destination": loc_taksim, "price": 1619, "active": True},
-            {"origin": loc_ist, "destination": loc_besiktas, "price": 1690, "active": True},
-            {"origin": loc_ist, "destination": loc_kadikoy, "price": 2050, "active": True},
-            
-            # SAW
-            {"origin": loc_saw, "destination": loc_sultanahmet, "price": 1900, "active": True},
-            {"origin": loc_saw, "destination": loc_taksim, "price": 1830, "active": True},
-        ]
-        
-        # Save to Excel
-        for r in base_routes:
-            DataManager.save_route(r["origin"], r["destination"], r["price"])
-
-    # Apply routes to Vito first
-    final_routes = []
-    for r in base_routes:
-        r_copy = r.copy()
-        r_copy["vehicle_id"] = vito.id
-        final_routes.append(r_copy)
-
-    # Generate routes for other vehicle types with specific multipliers
-    # Goal: Avoid huge price gaps (like 9000 TL vs 3000 TL)
-    multipliers = {
-        "vito_vip": 1.25,      # ~2200 TL (Comfort Upgrade)
-        "sprinter": 1.95,      # ~3440 TL (Capacity Upgrade - Matches Competitor - 50TL)
-        "luxury_sedan": 2.5,   # ~4400 TL (Luxury Service)
+    # Excel Column Key -> Vehicle Type Key
+    type_map = {
+        "price_vito": "vito",
+        "price_sedan": "sedan",
+        "price_sprinter": "sprinter",
+        "price_vitovip": "vito_vip" 
     }
+    
+    # 2. Strict Sync: CLEAR existing routes first
+    # This ensures if user removes a row in Excel, it's gone from DB.
+    deleted_count = db.query(FixedRoute).delete()
+    db.commit()
+    print(f"  -> Cleared {deleted_count} existing routes from DB to sync with Excel.")
+    
+    # 3. Load Excel Data
+    excel_routes = DataManager.load_routes()
+    
+    if not excel_routes:
+        print("  -> Excel file is empty! Database routes will be empty.")
+        return
 
-    for v_type, multiplier in multipliers.items():
-        vehicle = vehicles_map.get(v_type)
-        if vehicle:
-            for r in base_routes:
-                new_price = int(r["price"] * multiplier)
-                final_routes.append({
-                    "origin": r["origin"],
-                    "destination": r["destination"],
-                    "price": new_price,
-                    "vehicle_id": vehicle.id,
-                    "active": True
-                })
-
-    for r_data in final_routes:
-        # Check by composite key using filter
-        exists = db.query(FixedRoute).filter(
-            FixedRoute.origin == r_data["origin"],
-            FixedRoute.destination == r_data["destination"],
-            FixedRoute.vehicle_id == r_data["vehicle_id"]
-        ).first()
+    print(f"  -> Loading {len(excel_routes)} routes from Excel...")
+    
+    count = 0
+    for r in excel_routes:
+        origin = r["origin"]
+        destination = r["destination"]
         
-        if not exists:
-            print(f"  -> Seeding route: {r_data['origin']} -> {r_data['destination']} ({r_data['price']}₺)")
-            new_route = FixedRoute(**r_data)
-            db.add(new_route)
+        for price_key, vehicle_type in type_map.items():
+            price_val = r.get(price_key)
+            
+            # Ensure vehicle exists
+            vehicle = vehicles_map.get(vehicle_type)
+            if not vehicle:
+                continue
+
+            # Only add if price is valid (>1.0)
+            if price_val and price_val > 1.0:
+                 new_route = FixedRoute(
+                    origin=origin,
+                    destination=destination,
+                    vehicle_id=vehicle.id,
+                    price=price_val,
+                    
+                    # Extra Params from Excel
+                    active=r.get("active", True),
+                    discount_percent=r.get("discount", 0),
+                    competitor_price=r.get("comp_price", None),
+                    notes=r.get("notes", "")
+                )
+                 db.add(new_route)
+                 count += 1
     
     db.commit()
+    print(f"✅ Excel Sync Complete. Imported {count} price entries.")
 
 def init_db_data():
     """Main initialization entry point"""

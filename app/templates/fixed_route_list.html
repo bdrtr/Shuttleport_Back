@@ -1,0 +1,44 @@
+{% extends "sqladmin/list.html" %}
+
+{% block content %}
+{{ super() }}
+
+<!-- Hidden Form for Import -->
+<form id="excel-import-form" action="/api/admin/import-excel" method="post" enctype="multipart/form-data"
+    style="display: none;">
+    <input type="file" name="file" id="excel-file-input" accept=".xlsx"
+        onchange="document.getElementById('excel-import-form').submit();">
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Create Import button
+        var btn = document.createElement("button");
+        btn.innerHTML = '<i class="fa-solid fa-file-import me-1"></i> Import Excel';
+        btn.className = "btn btn-success ms-2";
+        btn.onclick = function () {
+            document.getElementById('excel-file-input').click();
+        };
+
+        // Find Export button to place Import next to it
+        var buttons = document.getElementsByTagName("button");
+        var exportBtn = null;
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].textContent.trim().includes("Export")) {
+                exportBtn = buttons[i];
+                break;
+            }
+        }
+
+        if (exportBtn) {
+            exportBtn.parentNode.insertBefore(btn, exportBtn.nextSibling);
+        } else {
+            // Fallback: Add to header
+            var header = document.querySelector(".card-header");
+            if (header) {
+                header.appendChild(btn);
+            }
+        }
+    });
+</script>
+{% endblock %}

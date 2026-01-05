@@ -1,13 +1,18 @@
 """
 Admin panel configuration using SQLAdmin - User-friendly version
 """
-from sqladmin import Admin, ModelView
+import shutil
+import os
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
+from sqladmin import Admin, ModelView, BaseView, expose
 from markupsafe import Markup
 from wtforms import SelectField, SelectMultipleField, widgets
-from app.database import engine
+from app.database import engine, SessionLocal
 from app.models.db_models import Vehicle, VehicleImage, FixedRoute, PricingConfig
 from app.core.constants import VEHICLE_TYPES, ISTANBUL_LOCATIONS, FEATURE_DEFINITIONS, FEATURE_CHOICES
-
+from app.services.data_manager import DataManager
+from app.services.init_db import init_routes_data
 
 
 
@@ -376,6 +381,8 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     name = "Fixed Route"
     name_plural = "Fixed Routes"
     icon = "fa-solid fa-route"
+    identity = "fixed_route"
+    list_template = "fixed_route_list.html"
     
     # Show route info with vehicle
     column_list = ["id", "origin", "destination", "vehicle", "price", "active"]
@@ -429,7 +436,7 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     can_edit = True
     can_delete = True
     can_view_details = True
-    
+
     async def insert_model(self, request, data):
         try:
             return await super().insert_model(request, data)
@@ -491,13 +498,18 @@ class PricingConfigAdmin(ModelView, model=PricingConfig):
     can_view_details = True
 
 
+
 def setup_admin(app):
     """Initialize and configure the admin panel"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    templates_dir = os.path.join(base_dir, "templates")
+    
     admin = Admin(
         app,
         engine,
         title="Shuttleport Admin",
-        base_url="/admin"
+        base_url="/admin",
+        templates_dir=templates_dir
     )
     
     # Register admin views
