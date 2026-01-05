@@ -4,25 +4,20 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import httpx
 import os
+from contextlib import asynccontextmanager
+import time
+from sqlalchemy.exc import OperationalError
+from app.database import engine, Base
+from app.models import db_models # Ensure models are loaded
+from app.api import pricing, exchange_rates
+from app.admin.admin_panel import setup_admin
+from app.services.init_db import init_db_data
 
 # Load environment variables
 load_dotenv()
 
-# Create FastAPI app
-app = FastAPI(
-    title="Shuttleport API",
-    description="API for Shuttleport transfer booking system",
-    version="1.0.0"
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact domains
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Google Maps API Key
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 # Static files with caching headers
 from fastapi.staticfiles import StaticFiles
@@ -35,19 +30,81 @@ class CacheStaticFiles(StaticFiles):
         response.headers["Cache-Control"] = "public, max-age=31536000"
         return response
 
-# Create static directory if it doesn't exist
+# Ensure static directory exists
 os.makedirs("static/images", exist_ok=True)
-app.mount("/static", CacheStaticFiles(directory="static"), name="static")
 
-# Import and include routers
-from app.api import pricing, exchange_rates
 
-app.include_router(pricing.router)
-app.include_router(exchange_rates.router)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan events - startup and shutdown logic
+    """
+    # Startup: Check DB and create tables
+    print("🚀 Starting up: Checking database connection...")
+    retries = 5
+    while retries > 0:
+        try:
+            # Try to create tables (this checks connection implicitly)
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database connection successful. Tables verified/created.")
+            
+            # Seed initial data
+            try:
+                print("🌱 Checking/Seeding initial data...")
+                init_db_data()
+            except Exception as e:
+                print(f"⚠️ Data seeding warning: {e}")
+                
+            break
+        except OperationalError as e:
+            retries -= 1
+            print(f"⚠️ Database connection failed. Retrying in 2s... ({retries} left)")
+            print(f"Error: {e}")
+            time.sleep(2)
+    
+    if retries == 0:
+        print("❌ CRITICAL: Could not connect to database after retries.")
+    
+    yield
+    
+    # Shutdown logic
+    print("👋 Shutting down...")
 
-# Admin Panel (accessible at /admin)
-from app.admin.admin_panel import setup_admin
-setup_admin(app)
+
+def create_application() -> FastAPI:
+    """
+    Create and configure FastAPI application
+    """
+    app = FastAPI(
+        title="Shuttleport API",
+        description="API for Shuttleport transfer booking system",
+        version="1.0.0",
+        lifespan=lifespan
+    )
+    
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # In production, specify exact domains
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Static Files
+    app.mount("/static", CacheStaticFiles(directory="static"), name="static")
+
+    # Include routers
+    app.include_router(pricing.router)
+    app.include_router(exchange_rates.router)
+    
+    # Setup Admin
+    setup_admin(app)
+    
+    return app
+
+# Create app instance
+app = create_application()
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")

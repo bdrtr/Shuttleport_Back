@@ -3,75 +3,13 @@ Admin panel configuration using SQLAdmin - User-friendly version
 """
 from sqladmin import Admin, ModelView
 from markupsafe import Markup
+from wtforms import SelectField, SelectMultipleField, widgets
 from app.database import engine
 from app.models.db_models import Vehicle, VehicleImage, FixedRoute, PricingConfig
+from app.core.constants import VEHICLE_TYPES, ISTANBUL_LOCATIONS, FEATURE_DEFINITIONS, FEATURE_CHOICES
 
 
-class VehicleAdmin(ModelView, model=Vehicle):
-    """Admin view for vehicles"""
-    name = "Vehicle"
-    name_plural = "Vehicles"
-    icon = "fa-solid fa-car"
-    
-    # Show ID and name together in list
-    column_list = ["id", "name_en", "vehicle_type", "capacity_max", "active"]
-    column_searchable_list = ["name_en", "name_tr", "vehicle_type"]
-    column_sortable_list = ["id", "name_en", "active"]
-    column_default_sort = ("id", False)
-    
-    # Better labels
-    column_labels = {
-        "id": "ID",
-        "name_en": "Vehicle Name",
-        "vehicle_type": "Type Code",
-        "capacity_max": "Capacity",
-        "active": "Active",
-        "image_path": "Image",
-        "images": "Gallery"
-    }
-    
-    # Format images relationship to show thumbnails
-    column_formatters = {
-        "images": lambda m, a: Markup('<div style="display: flex; gap: 5px; flex-wrap: wrap;">' + 
-            ''.join([f'<img src="/static/{img.image_path}" style="max-width: 80px; max-height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid {"#4CAF50" if img.is_primary else "#ddd"};" title="{"Primary" if img.is_primary else ""}">' 
-                    for img in (m.images or [])]) + 
-            '</div>') if m.images else Markup('<span style="color: #999;">No images</span>'),
-        
-        "fixed_routes": lambda m, a: Markup(
-            '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">'
-            '<thead><tr style="background: #f5f5f5;">'
-            '<th style="padding: 6px; text-align: left; border-bottom: 2px solid #ddd;">Route</th>'
-            '<th style="padding: 6px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>'
-            '<th style="padding: 6px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>'
-            '</tr></thead><tbody>' +
-            ''.join([
-                f'<tr style="border-bottom: 1px solid #eee;">'
-                f'<td style="padding: 6px;"><b>{route.origin}</b> → <b>{route.destination}</b></td>'
-                f'<td style="padding: 6px; text-align: right; color: #2196F3; font-weight: bold;">{route.price:,.2f} ₺</td>'
-                f'<td style="padding: 6px; text-align: center;">{"✅" if route.active else "❌"}</td>'
-                f'</tr>'
-                for route in (m.fixed_routes or [])
-            ]) +
-            '</tbody></table>'
-        ) if m.fixed_routes else Markup('<span style="color: #999;">No fixed routes</span>')
-    }
 
-    # Form configuration
-    form_columns = [
-        "vehicle_type", "name_en", "name_tr", 
-        "capacity_min", "capacity_max", "baggage_capacity",
-        "base_multiplier", "features", "active"
-    ]
-    
-    # Inline model view for images
-    # SQLAdmin supports inline models via form_ajax_refs or separate management
-    # For simplicity and robustness, we will manage images in their own view first,
-    # but we can try to add them here if possible. 
-    # Let's keep Vehicle clean and add a separate VehicleImageAdmin.
-
-    can_edit = True
-    can_delete = True
-    can_view_details = True
 
 
 class VehicleImageAdmin(ModelView, model=VehicleImage):
@@ -302,6 +240,137 @@ class VehicleImageAdmin(ModelView, model=VehicleImage):
     can_delete = True
 
 
+
+
+class CheckboxListWidget(widgets.ListWidget):
+    """Custom widget to render checkboxes cleanly without theme interference"""
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault('id', field.id)
+        html = [f'<{self.html_tag} id="{field.id}" style="list-style: none; padding: 0; margin: 0;">']
+        for subfield in field:
+            # Force style to prevent 'form-control' stretching and ensure native clickability
+            # Important: Admin templates often hide checkboxes (opacity:0) for custom styling (iCheck).
+            # We must override this with !important to keep them visible and clickable.
+            cb_style = (
+                "width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 8px; "
+                "appearance: checkbox !important; -webkit-appearance: checkbox !important; "
+                "opacity: 1 !important; position: static !important; pointer-events: auto !important; cursor: pointer;"
+            )
+            cb = subfield(style=cb_style)
+            label = subfield.label(style="display: inline-block; vertical-align: middle; font-weight: normal; margin-bottom: 0; cursor: pointer;")
+            html.append(f'<li style="margin-bottom: 8px; display: flex; align-items: center;">{cb} {label}</li>')
+        html.append(f'</{self.html_tag}>')
+        return Markup(''.join(html))
+
+class JsonFeatureField(SelectMultipleField):
+    """Custom field to handle conversion between JSON list of dicts and list of keys"""
+    widget = CheckboxListWidget(prefix_label=False)
+    option_widget = widgets.CheckboxInput()
+    
+    def process_data(self, value):
+        """Convert Model Data (JSON) -> Form Data (List of Keys)"""
+        if not value or not isinstance(value, list):
+            self.data = []
+            return
+
+        text_to_key = {}
+        for k, v in FEATURE_DEFINITIONS.items():
+            text_to_key[v[1]] = k
+        
+        selected_keys = []
+        for item in value:
+            if isinstance(item, dict) and "text" in item:
+                text = item["text"]
+                if text in text_to_key:
+                    selected_keys.append(text_to_key[text])
+        
+        self.data = selected_keys
+
+    def populate_obj(self, obj, name):
+        formatted_features = []
+        if self.data:
+            for key in self.data:
+                if key in FEATURE_DEFINITIONS:
+                    icon, text = FEATURE_DEFINITIONS[key]
+                    formatted_features.append({"icon": icon, "text": text})
+        setattr(obj, name, formatted_features)
+
+
+class VehicleAdmin(ModelView, model=Vehicle):
+    """Admin view for vehicles"""
+    name = "Vehicle"
+    name_plural = "Vehicles"
+    icon = "fa-solid fa-car"
+    
+    # Show ID and name together in list
+    column_list = ["id", "name_en", "vehicle_type", "capacity_max", "active"]
+    column_searchable_list = ["name_en", "name_tr", "vehicle_type"]
+    column_sortable_list = ["id", "name_en", "active"]
+    column_default_sort = ("id", False)
+    
+    # Better labels
+    column_labels = {
+        "id": "ID",
+        "name_en": "Vehicle Name",
+        "vehicle_type": "Type Code",
+        "capacity_max": "Capacity",
+        "active": "Active",
+        "image_path": "Image",
+        "images": "Gallery",
+        "base_multiplier": "Base Multiplier (TL)"
+    }
+    
+    # Format images relationship to show thumbnails
+    column_formatters = {
+        "images": lambda m, a: Markup('<div style="display: flex; gap: 5px; flex-wrap: wrap;">' + 
+            ''.join([f'<img src="/static/{img.image_path}" style="max-width: 80px; max-height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid {"#4CAF50" if img.is_primary else "#ddd"};" title="{"Primary" if img.is_primary else ""}">' 
+                    for img in (m.images or [])]) + 
+            '</div>') if m.images else Markup('<span style="color: #999;">No images</span>'),
+        
+        "fixed_routes": lambda m, a: Markup(
+            '<table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">'
+            '<thead><tr style="background: #f5f5f5;">'
+            '<th style="padding: 6px; text-align: left; border-bottom: 2px solid #ddd;">Route</th>'
+            '<th style="padding: 6px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>'
+            '<th style="padding: 6px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>'
+            '</tr></thead><tbody>' +
+            ''.join([
+                f'<tr style="border-bottom: 1px solid #eee;">'
+                f'<td style="padding: 6px;"><b>{route.origin}</b> → <b>{route.destination}</b></td>'
+                f'<td style="padding: 6px; text-align: right; color: #2196F3; font-weight: bold;">{route.price:,.2f} ₺</td>'
+                f'<td style="padding: 6px; text-align: center;">{"✅" if route.active else "❌"}</td>'
+                f'</tr>'
+                for route in (m.fixed_routes or [])
+            ]) +
+            '</tbody></table>'
+        ) if m.fixed_routes else Markup('<span style="color: #999;">No fixed routes</span>')
+    }
+
+    # Form configuration
+    form_columns = [
+        "vehicle_type", "name_en", "name_tr", 
+        "capacity_min", "capacity_max", "baggage_capacity",
+        "base_multiplier", "features", "active"
+    ]
+    
+    form_overrides = {
+        "vehicle_type": SelectField,
+        "features": JsonFeatureField
+    }
+    
+    form_args = {
+        "vehicle_type": {
+            "choices": VEHICLE_TYPES,
+            "label": "Araç Tipi (Type Code)"
+        },
+        "features": {
+            "choices": FEATURE_CHOICES,
+            "label": "Araç Özellikleri (Features)",
+            "default": list(FEATURE_DEFINITIONS.keys())
+        }
+    }
+
+
 class FixedRouteAdmin(ModelView, model=FixedRoute):
     """Admin view for fixed routes"""
     name = "Fixed Route"
@@ -323,8 +392,8 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     # Better labels - vehicle shown in details/edit
     column_labels = {
         "id": "Route ID",
-        "origin": "From",
-        "destination": "To",
+        "origin": "From (Kalkış)",
+        "destination": "To (Varış)",
         "vehicle": "Vehicle",
         "vehicle_id": "Vehicle Type",
         "price": "Price (₺)",
@@ -334,6 +403,25 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
         "active": "Active"
     }
     
+    # Use Dropdowns for Location Fields
+    from wtforms import SelectField
+    
+    form_overrides = {
+        "origin": SelectField,
+        "destination": SelectField
+    }
+    
+    form_args = {
+        "origin": {
+            "choices": ISTANBUL_LOCATIONS,
+            "label": "From (Kalkış Noktası)"
+        },
+        "destination": {
+            "choices": ISTANBUL_LOCATIONS,
+            "label": "To (Varış Noktası)"
+        }
+    }
+    
     # Pagination
     page_size = 25
     
@@ -341,6 +429,28 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     can_edit = True
     can_delete = True
     can_view_details = True
+    
+    async def insert_model(self, request, data):
+        try:
+            return await super().insert_model(request, data)
+        except Exception as e:
+            # Check for unique constraint violation
+            error_str = str(e).lower()
+            if "unique constraint" in error_str or "duplicate key" in error_str:
+                # User friendly error
+                raise Exception(f"Error: A route for {data.get('origin')} -> {data.get('destination')} with this vehicle already exists.")
+            raise e
+
+    async def update_model(self, request, pk, data):
+        try:
+            return await super().update_model(request, pk, data)
+        except Exception as e:
+             # Check for unique constraint violation
+            error_str = str(e).lower()
+            if "unique constraint" in error_str or "duplicate key" in error_str:
+                # User friendly error
+                raise Exception(f"Error: A route for {data.get('origin')} -> {data.get('destination')} with this vehicle already exists.")
+            raise e
 
 
 class PricingConfigAdmin(ModelView, model=PricingConfig):
@@ -362,6 +472,17 @@ class PricingConfigAdmin(ModelView, model=PricingConfig):
         "config_value": "Value (₺ or %)",
         "description": "Description",
         "vehicle_type": "Vehicle Type"
+    }
+
+    form_overrides = {
+        "vehicle_type": SelectField
+    }
+    
+    form_args = {
+        "vehicle_type": {
+            "choices": [(None, "Genel / Tüm Araçlar (Global)")] + VEHICLE_TYPES,
+            "label": "Vehicle Type"
+        }
     }
     
     can_create = True
