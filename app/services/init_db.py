@@ -112,10 +112,19 @@ def init_routes_data(db: Session):
     Initialize fixed routes: STRICT LOAD from Excel.
     The Excel file (istanbul_transfer.xlsx) is the Single Source of Truth.
     Existing DB data is CLEARED and re-populated from Excel on startup.
+    If Excel file doesn't exist, no routes are loaded.
     """
-    print("Initializing Routes from Excel (Strict Mode)...")
-    
+    import os
     from app.services.data_manager import DataManager
+    
+    excel_path = "static/istanbul_transfer.xlsx"
+    
+    # Check if Excel file exists
+    if not os.path.exists(excel_path):
+        print("⚠️  No Excel file found. Skipping route initialization.")
+        return
+    
+    print("Initializing Routes from Excel (Strict Mode)...")
     
     # 1. Load Vehicles Map
     vehicles_map = {v.vehicle_type: v for v in db.query(Vehicle).all()}

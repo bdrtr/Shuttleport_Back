@@ -439,7 +439,10 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
 
     async def insert_model(self, request, data):
         try:
-            return await super().insert_model(request, data)
+            result = await super().insert_model(request, data)
+            # Sync to Excel after successful insert
+            await self._sync_to_excel()
+            return result
         except Exception as e:
             # Check for unique constraint violation
             error_str = str(e).lower()
@@ -450,7 +453,10 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
 
     async def update_model(self, request, pk, data):
         try:
-            return await super().update_model(request, pk, data)
+            result = await super().update_model(request, pk, data)
+            # Sync to Excel after successful update
+            await self._sync_to_excel()
+            return result
         except Exception as e:
              # Check for unique constraint violation
             error_str = str(e).lower()
@@ -458,6 +464,84 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
                 # User friendly error
                 raise Exception(f"Error: A route for {data.get('origin')} -> {data.get('destination')} with this vehicle already exists.")
             raise e
+
+    async def delete_model(self, request, pk):
+        """Override delete to also sync to Excel"""
+        result = await super().delete_model(request, pk)
+        # Sync to Excel after successful delete
+        await self._sync_to_excel()
+        return result
+
+    async def _sync_to_excel(self):
+        """Sync current database state back to Excel file"""
+        from app.services.data_manager import DataManager
+        from app.database import SessionLocal
+        import pandas as pd
+        
+        db = SessionLocal()
+        try:
+            # Get all routes from DB grouped by origin/destination
+            routes = db.query(FixedRoute).all()
+            
+            # Group by origin-destination pairs
+            route_dict = {}
+            for route in routes:
+                key = (route.origin, route.destination)
+                if key not in route_dict:
+                    route_dict[key] = {
+                        "origin": route.origin,
+                        "destination": route.destination,
+                        "price_vito": 0,
+                        "price_sedan": 0,
+                        "price_vitovip": 0,
+                        "price_sprinter": 0,
+                        "active": True,
+                        "discount": 0,
+                        "comp_price": None,
+                        "notes": ""
+                    }
+                
+                # Map vehicle type to price key
+                vtype = route.vehicle.vehicle_type
+                if vtype == "vito":
+                    route_dict[key]["price_vito"] = float(route.price)
+                elif vtype == "sedan":
+                    route_dict[key]["price_sedan"] = float(route.price)
+                elif vtype == "vito_vip":
+                    route_dict[key]["price_vitovip"] = float(route.price)
+                elif vtype == "sprinter":
+                    route_dict[key]["price_sprinter"] = float(route.price)
+                
+                # Update other fields from first route encountered
+                route_dict[key]["active"] = route.active
+                route_dict[key]["discount"] = float(route.discount_percent) if route.discount_percent else 0
+                route_dict[key]["comp_price"] = float(route.competitor_price) if route.competitor_price else None
+                route_dict[key]["notes"] = route.notes or ""
+            
+            # Convert to list and save to Excel
+            excel_data = []
+            for idx, (key, route_data) in enumerate(sorted(route_dict.items()), start=1):
+                excel_data.append({
+                    "ID": idx,
+                    "Origin": route_data["origin"],
+                    "Destination": route_data["destination"],
+                    "Price_Sedan": int(route_data["price_sedan"]) if route_data["price_sedan"] > 0 else 0,
+                    "Price_Vito": int(route_data["price_vito"]) if route_data["price_vito"] > 0 else 0,
+                    "Price_VitoVIP": int(route_data["price_vitovip"]) if route_data["price_vitovip"] > 0 else 0,
+                    "Price_Sprinter": int(route_data["price_sprinter"]) if route_data["price_sprinter"] > 0 else 0,
+                    "Active": route_data["active"],
+                    "Discount": route_data["discount"],
+                    "Comp_Price": route_data["comp_price"],
+                    "Notes": route_data["notes"]
+                })
+            
+            # Write to Excel
+            df = pd.DataFrame(excel_data)
+            df.to_excel("static/istanbul_transfer.xlsx", index=False)
+            
+        finally:
+            db.close()
+
 
 
 class PricingConfigAdmin(ModelView, model=PricingConfig):
