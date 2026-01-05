@@ -438,13 +438,14 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
     can_view_details = True
 
     async def insert_model(self, request, data):
+        from sqlalchemy.exc import IntegrityError, SQLAlchemyError
         try:
             result = await super().insert_model(request, data)
             # Sync to Excel after successful insert
             await self._sync_to_excel()
             return result
-        except Exception as e:
-            # Check for unique constraint violation
+        except IntegrityError as e:
+            # Unique constraint violation
             error_str = str(e).lower()
             if "unique constraint" in error_str or "duplicate key" in error_str:
                 # User friendly error
@@ -452,13 +453,14 @@ class FixedRouteAdmin(ModelView, model=FixedRoute):
             raise e
 
     async def update_model(self, request, pk, data):
+        from sqlalchemy.exc import IntegrityError, SQLAlchemyError
         try:
             result = await super().update_model(request, pk, data)
             # Sync to Excel after successful update
             await self._sync_to_excel()
             return result
-        except Exception as e:
-             # Check for unique constraint violation
+        except IntegrityError as e:
+             # Unique constraint violation
             error_str = str(e).lower()
             if "unique constraint" in error_str or "duplicate key" in error_str:
                 # User friendly error

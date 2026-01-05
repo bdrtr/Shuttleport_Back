@@ -58,6 +58,9 @@ class DataManager:
             
             return []
 
-        except Exception as e:
+        except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             print(f"Error loading routes from Excel: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error loading routes: {e}")
             return []

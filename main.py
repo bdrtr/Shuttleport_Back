@@ -84,10 +84,12 @@ def create_application() -> FastAPI:
         lifespan=lifespan
     )
     
-    # CORS middleware
+    # CORS middleware - configurable for production
+    allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # In production, specify exact domains
+        allow_origins=allowed_origins,  # Configurable via CORS_ORIGINS env var
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
