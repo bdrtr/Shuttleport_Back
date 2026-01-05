@@ -7,35 +7,22 @@ __pycache__/
 venv/
 env/
 ENV/
-*.egg-info/
-dist/
-build/
+.venv
 
-# Environment variables
+# Environment
 .env
-.env.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
 
-# Alembic
-# Keep alembic/ directory
-
-# Docker
-docker-compose.override.yml
-
-# Logs
-*.log
-logs/
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
@@ -46,21 +33,13 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# Temporary files
-*.tmp
-*.bak
-*.cache
+# Logs
+*.log
 
-# Project specific
-scripts/__pycache__/
+# Excel temporary files
+~$*.xlsx
+~$*.xls
 
-# Uploaded images (keep the directory structure but not actual images in git)
-# Uncomment below if you don't want to commit uploaded images:
-# static/images/*.jpg
-# static/images/*.jpeg
-# static/images/*.png
-# static/images/*.gif
-
-# Backup files
-*.backup
-database_schema.drawio.bkp
+# Static uploads (keep directory structure)
+static/images/*
+!static/images/.gitkeep
