@@ -1,187 +1,165 @@
 # Shuttleport Backend API
 
-Modern transfer booking platform - FastAPI backend with PostgreSQL database
+FastAPI-based backend service for Shuttleport transfer booking system with Excel-based route management.
 
 ## 🚀 Features
 
-- **Multi-image uploads** per vehicle with primary selection
-- **Template route system** for 60+ popular destinations  
-- **Dynamic pricing** with minimum fare enforcement (1200₺)
-- **Admin panel** with SQLAdmin (thumbnails, formatted tables)
-- **Database migrations** with Alembic
-- **RESTful API** with automatic documentation
+### Core Functionality
+- **Real-time Pricing Calculation** - Dynamic pricing based on distance, duration, and vehicle type
+- **Fixed Route Management** - Pre-configured routes with tiered pricing (Vito, Sedan, Sprinter, VIP)
+- **Excel-Based Data Management** - Route data stored in Excel for easy editing
+- **Two-Way Sync** - Admin panel changes automatically update Excel file
 
-## 📁 Project Structure
+### Admin Panel (SQLAdmin)
+- Vehicle management with image upload
+- Route management with Excel import/export
+- Pricing configuration
+- Real-time Excel synchronization
 
-```
-shuttleport_backend/
-├── app/
-│   ├── admin/              # Admin panel (SQLAdmin)
-│   │   ├── admin_panel.py  # Admin views
-│   │   └── utils.py        # Custom fields
-│   ├── api/                # API endpoints
-│   │   ├── pricing.py      # Pricing calculations
-│   │   └── exchange_rates.py
-│   ├── models/             # Database models
-│   │   ├── db_models.py    # SQLAlchemy models
-│   │   └── pricing.py      # Pricing logic
-│   └── database.py         # Database config
-├── alembic/                # Database migrations
-│   └── versions/           # Migration files
-├── scripts/                # Utility scripts
-│   └── create_template_routes.py
-├── static/
-│   └── images/             # Uploaded vehicle images
-└── main.py                 # FastAPI app
-```
+### API Endpoints
+- `/api/pricing/calculate` - Calculate transfer price
+- `/api/pricing/exchange-rates` - Get currency exchange rates
+- `/api/admin/import-excel` - Upload Excel file to update routes
+- `/admin` - Admin dashboard
 
-## 🗄️ Database Schema
+## 📋 Tech Stack
 
-4 main tables:
-- **vehicles** - Vehicle types (Vito, Sprinter, Luxury Sedan)
-- **vehicle_images** - Multi-image support with primary flag
-- **fixed_routes** - Pre-priced popular routes
-- **pricing_config** - Global pricing settings
+- **Framework**: FastAPI 0.109.0
+- **Database**: PostgreSQL with SQLAlchemy 2.0
+- **Admin Panel**: SQLAdmin 0.22.0
+- **Excel Processing**: Pandas + OpenPyxl
+- **Authentication**: JWT with passlib/bcrypt
+- **Rate Limiting**: SlowAPI
 
-View `database_schema.drawio` for full ER diagram.
-
-## 🛠️ Setup
+## 🛠️ Installation
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.11+
 - PostgreSQL
-- Node.js (for frontend)
+- Virtual environment (recommended)
 
-### Installation
+### Setup
 
+1. **Clone & Install**
 ```bash
-# Create virtual environment
+git clone <repository-url>
+cd Shuttleport_Back
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
+venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your DATABASE_URL
 ```
 
-### Database Setup
+2. **Environment Variables**
+Create `.env` file:
+```env
+DATABASE_URL=postgresql://user:password@localhost/shuttleport
+GOOGLE_MAPS_API_KEY=your_api_key_here
+SECRET_KEY=your_secret_key
+```
 
+3. **Database Setup**
 ```bash
 # Run migrations
 alembic upgrade head
 
-# (Optional) Create template routes
-python scripts/create_template_routes.py --all
-```
-
-### Run Development Server
-
-```bash
-# Backend
+# Start server
 uvicorn main:app --reload --port 8000
-
-# Admin panel: http://localhost:8000/admin
-# API docs: http://localhost:8000/docs
 ```
 
-## 🎨 Admin Panel
+4. **Access Admin Panel**
+Navigate to `http://localhost:8000/admin`
 
-Access at `/admin` with features:
-- **Vehicle management** with image gallery
-- **Multi-image upload** (Ctrl+Click)
-- **Fixed routes** with formatted tables
-- **Pricing configuration**
+## 📊 Excel Route Management
 
-## 🚗 Template Routes
+### File Structure
+Routes are stored in `static/istanbul_transfer.xlsx` with columns:
+- **ID** - Unique route identifier
+- **Origin** - Starting location
+- **Destination** - End location
+- **Price_Sedan** - Sedan price (auto-calculated: Vito × 0.96)
+- **Price_Vito** - Base Vito price
+- **Price_VitoVIP** - VIP price (auto-calculated: Vito × 1.25)
+- **Price_Sprinter** - Sprinter price (auto-calculated: Vito × 1.95)
+- **Active** - Route status (True/False)
+- **Discount** - Discount percentage
+- **Comp_Price** - Competitor price (for reference)
+- **Notes** - Additional notes
 
-Generate routes for all vehicles:
+### How It Works
 
+1. **Startup**: System loads routes from Excel into database
+2. **Admin Changes**: Adding/editing routes in admin panel updates both DB and Excel
+3. **Excel Upload**: Import button in Fixed Routes page replaces all routes with uploaded file
+4. **No Excel File**: If file doesn't exist, system starts with empty routes
+
+### Excel Import
+
+1. Go to Admin Panel → Fixed Routes
+2. Click "Import Excel" button
+3. Select `.xlsx` file
+4. System automatically syncs database
+
+## 🗂️ Project Structure
+
+```
+Shuttleport_Back/
+├── app/
+│   ├── admin/          # Admin panel configuration
+│   ├── api/            # API endpoints
+│   ├── core/           # Constants and config
+│   ├── models/         # SQLAlchemy models
+│   ├── services/       # Business logic & data management
+│   └── templates/      # Admin templates
+├── static/             # Static files & Excel data
+├── alembic/            # Database migrations
+├── main.py             # Application entry point
+└── requirements.txt    # Dependencies
+```
+
+## 🔧 Configuration
+
+### Pricing Logic
+- Minimum fare enforced (configured in pricing_config table)
+- Tiered pricing by vehicle type
+- Distance-based calculation with per-km rates
+- Excel file serves as single source of truth for fixed routes
+
+### Vehicle Types
+- `vito` - Standard Mercedes Vito (base price)
+- `sedan` - Luxury Sedan (96% of Vito price)
+- `vito_vip` - VIP Vito (125% of Vito price)
+- `sprinter` - Mercedes Sprinter (195% of Vito price)
+
+## 📝 Development
+
+### Running in Development
 ```bash
-# Preview
-python scripts/create_template_routes.py --all --dry-run
-
-# Create
-python scripts/create_template_routes.py --all
-
-# Single vehicle
-python scripts/create_template_routes.py --vehicle vito
+uvicorn main:app --reload --port 8000
 ```
 
-Creates 60+ routes:
-- Istanbul Airport → 10 destinations
-- Sabiha Gökçen Airport → 10 destinations
-- For all 3 vehicle types
-
-## 💰 Pricing
-
-### Minimum Fare
-All trips: **1200₺ minimum**
-
-### Dynamic Pricing Formula
-```
-price = max(
-    base_fare + (distance_km × per_km_rate) + airport_fee,
-    minimum_fare
-)
-```
-
-### Fixed Routes
-Pre-priced routes override dynamic calculation.
-
-## 📊 API Endpoints
-
-### Pricing
-- `POST /api/pricing/calculate` - Calculate trip price
-- `GET /api/pricing/vehicles` - List vehicles
-- `GET /api/pricing/fixed-routes` - Get fixed routes
-
-### Example Request
-```bash
-curl -X POST http://localhost:8000/api/pricing/calculate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "origin_lat": 41.0082,
-    "origin_lng": 28.8784,
-    "origin_name": "Avcılar",
-    "destination_lat": 40.9925,
-    "destination_lng": 28.8853,
-    "destination_name": "Küçükçekmece",
-    "distance_km": 7,
-    "passenger_count": 1
-  }'
-```
-
-## 🔧 Database Migrations
-
+### Database Migrations
 ```bash
 # Create new migration
 alembic revision --autogenerate -m "description"
 
 # Apply migrations
 alembic upgrade head
-
-# Rollback
-alembic downgrade -1
 ```
 
-## 📝 Recent Updates
+## 🚢 Deployment
 
-- ✅ Multi-image upload with primary selection
-- ✅ Template route generation system
-- ✅ 1200₺ minimum fare enforcement
-- ✅ Admin UI improvements (thumbnails, tables)
-- ✅ Database schema diagram
-
-## 🤝 Contributing
-
-1. Create feature branch
-2. Make changes
-3. Test thoroughly
-4. Submit PR
+### Production Checklist
+- [ ] Set `DATABASE_URL` to production PostgreSQL
+- [ ] Configure `SECRET_KEY` securely
+- [ ] Set up CORS allowed origins
+- [ ] Enable HTTPS
+- [ ] Configure rate limiting
+- [ ] Set up backup for Excel file
 
 ## 📄 License
 
-MIT
+Proprietary - All rights reserved
+
+---
+
+**Last Updated**: January 2026
