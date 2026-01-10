@@ -156,7 +156,11 @@ def get_vehicle_configs() -> Dict[VehicleType, VehicleInfo]:
 
 def normalize_location_name(name: str) -> str:
     """Konum adını normalize et (karşılaştırma için)"""
-    return name.lower().replace("ı", "i").replace("ğ", "g").replace("ş", "s").replace("ç", "c").replace("ü", "u").replace("ö", "o")
+    normalized = name.lower().replace("ı", "i").replace("ğ", "g").replace("ş", "s").replace("ç", "c").replace("ü", "u").replace("ö", "o")
+    # Handle common Turkish-English translations
+    normalized = normalized.replace("havalimani", "airport").replace("havalimanı", "airport")
+    normalized = normalized.replace("ist", "").replace("(", "").replace(")", "").strip()
+    return normalized
 
 
 def check_fixed_route(origin: str, destination: str, db: Session = None) -> Optional[Dict[VehicleType, float]]:
@@ -178,8 +182,11 @@ def check_fixed_route(origin: str, destination: str, db: Session = None) -> Opti
             route_origin_norm = normalize_location_name(route.origin)
             route_dest_norm = normalize_location_name(route.destination)
             
-            # Check forward direction
-            if route_origin_norm in origin_norm and route_dest_norm in destination_norm:
+            # Check forward direction (bidirectional matching for Turkish/English names)
+            origin_match = (route_origin_norm in origin_norm or origin_norm in route_origin_norm)
+            dest_match = (route_dest_norm in destination_norm or destination_norm in route_dest_norm)
+            
+            if origin_match and dest_match:
                 # Get all vehicle prices for this route
                 all_routes = db.query(FixedRoute).filter(
                     FixedRoute.origin == route.origin,
@@ -203,8 +210,11 @@ def check_fixed_route(origin: str, destination: str, db: Session = None) -> Opti
                 
                 return prices if prices else None
             
-            # Check reverse direction
-            if route_dest_norm in origin_norm and route_origin_norm in destination_norm:
+            # Check reverse direction (bidirectional matching for Turkish/English names)
+            origin_match_rev = (route_dest_norm in origin_norm or origin_norm in route_dest_norm)
+            dest_match_rev = (route_origin_norm in destination_norm or destination_norm in route_origin_norm)
+            
+            if origin_match_rev and dest_match_rev:
                 # Same logic for reverse
                 all_routes = db.query(FixedRoute).filter(
                     FixedRoute.origin == route.origin,

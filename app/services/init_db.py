@@ -9,16 +9,16 @@ def init_pricing_data(db: Session):
     configs = [
         # Global Settings
         {"key": "base_fare", "value": 50.00, "desc": "Baaslangic ucreti"},
-        {"key": "airport_fee", "value": 150.00, "desc": "Havalimani karsilama/ekstra ucreti"},
+        {"key": "airport_fee", "value": 100.00, "desc": "Havalimani karsilama/ekstra ucreti"},
         {"key": "round_trip_discount", "value": 10.00, "desc": "Gidis-donus indirim yuzdesi"},
         
-        # Vehicle Specific Rates (Per KM)
-        {"key": "per_km_rate_vito", "value": 25.00, "desc": "Vito KM basi ucret", "vehicle": "vito"},
-        {"key": "per_km_rate_sprinter", "value": 35.00, "desc": "Sprinter KM basi ucret", "vehicle": "sprinter"},
-        {"key": "per_km_rate_luxury_sedan", "value": 40.00, "desc": "Luks Sedan KM basi ucret", "vehicle": "luxury_sedan"},
+        # Vehicle Specific Rates (Per KM) - Updated to be competitive (50 TL cheaper than istanbulshuttleport.com)
+        {"key": "per_km_rate_vito", "value": 35.00, "desc": "Vito KM basi ucret", "vehicle": "vito"},
+        {"key": "per_km_rate_sprinter", "value": 50.00, "desc": "Sprinter KM basi ucret", "vehicle": "sprinter"},
+        {"key": "per_km_rate_luxury_sedan", "value": 35.00, "desc": "Luks Sedan KM basi ucret", "vehicle": "luxury_sedan"},
         
-        # Minimum Fares
-        {"key": "minimum_fare", "value": 1200.00, "desc": "Minimum tasima ucreti (Global)"},
+        # Minimum Fares - Updated based on competitor analysis
+        {"key": "minimum_fare", "value": 1900.00, "desc": "Minimum tasima ucreti (Global)"},
     ]
 
     for conf in configs:
@@ -132,7 +132,7 @@ def init_routes_data(db: Session):
     # Excel Column Key -> Vehicle Type Key
     type_map = {
         "price_vito": "vito",
-        "price_sedan": "sedan",
+        "price_sedan": "luxury_sedan",  # Fixed: matches DB vehicle_type
         "price_sprinter": "sprinter",
         "price_vitovip": "vito_vip" 
     }
